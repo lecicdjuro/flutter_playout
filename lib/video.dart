@@ -12,17 +12,23 @@ import 'package:flutter_playout/player_state.dart';
 /// used for lock screen info panel on both iOS & Android. The [isLiveStream]
 /// flag is only used on iOS to change the scrub-bar look on lock screen info
 /// panel. It has no affect on the actual functionality of the plugin. Defaults
-/// to false. Use [onViewCreated] callback to get notified once the underlying
-/// [PlatformView] is setup. The [desiredState] enum can be used to control
-/// play/pause. If the value change, the widget will make sure that player is
-/// in sync with the new state.
+/// to false. Use [preferredAudioLanguage] to set select HLS manifest language
+/// on player init. If the [preferredAudioLanguage] value changes during widget
+/// rebuild, the player would automatically switch to new language. Use position
+/// to set start position for player seek bar. Changing [position] during widget
+/// rebuild will make player seek to new position. Use [onViewCreated] callback
+/// to get notified once the underlying [PlatformView] is setup. The
+/// [desiredState] enum can be used to control play/pause. If the value change,
+/// the widget will make sure that player is in sync with the new state.
 class Video extends StatefulWidget {
   final bool autoPlay;
   final bool showControls;
   final String url;
   final String title;
   final String subtitle;
+  final String preferredAudioLanguage;
   final bool isLiveStream;
+  final double position;
   final Function onViewCreated;
   final PlayerState desiredState;
 
@@ -33,7 +39,9 @@ class Video extends StatefulWidget {
       this.url,
       this.title = "",
       this.subtitle = "",
+      this.preferredAudioLanguage = "mul",
       this.isLiveStream = false,
+      this.position = -1,
       this.onViewCreated,
       this.desiredState = PlayerState.PLAYING})
       : super(key: key);
@@ -73,7 +81,9 @@ class _VideoState extends State<Video> {
             "url": widget.url,
             "title": widget.title ?? "",
             "subtitle": widget.subtitle ?? "",
+            "preferredAudioLanguage": widget.preferredAudioLanguage ?? "mul",
             "isLiveStream": widget.isLiveStream,
+            "position": widget.position,
           },
           creationParamsCodec: const JSONMessageCodec(),
           onPlatformViewCreated: (viewId) {
@@ -100,6 +110,7 @@ class _VideoState extends State<Video> {
             "url": widget.url,
             "title": widget.title ?? "",
             "subtitle": widget.subtitle ?? "",
+            "preferredAudioLanguage": widget.preferredAudioLanguage ?? "mul",
             "isLiveStream": widget.isLiveStream,
           },
           creationParamsCodec: const JSONMessageCodec(),
@@ -135,6 +146,12 @@ class _VideoState extends State<Video> {
     }
     if (oldWidget.showControls != widget.showControls) {
       _onShowControlsFlagChanged();
+    }
+    if (oldWidget.preferredAudioLanguage != widget.preferredAudioLanguage) {
+      _onPreferredAudioLanguageChanged();
+    }
+    if (oldWidget.position != widget.position && widget.position >= 0) {
+      _onSeekPositionChanged();
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -173,6 +190,22 @@ class _VideoState extends State<Video> {
     });
   }
 
+  void _onPreferredAudioLanguageChanged() async {
+    if (_methodChannel != null &&
+        widget.preferredAudioLanguage != null &&
+        widget.preferredAudioLanguage.isNotEmpty &&
+        !Platform.isIOS) {
+      _methodChannel.invokeMethod(
+          "setPreferredAudioLanguage", {"code": widget.preferredAudioLanguage});
+    }
+  }
+
+  void _onSeekPositionChanged() async {
+    if (_methodChannel != null && !Platform.isIOS) {
+      _methodChannel.invokeMethod("seekTo", {"position": widget.position});
+    }
+  }
+
   void _pausePlayback() async {
     if (_methodChannel != null) {
       _methodChannel.invokeMethod("pause");
@@ -193,6 +226,7 @@ class _VideoState extends State<Video> {
         "title": widget.title,
         "subtitle": widget.subtitle,
         "isLiveStream": widget.isLiveStream,
+        "showControls": widget.showControls,
       });
     }
   }
