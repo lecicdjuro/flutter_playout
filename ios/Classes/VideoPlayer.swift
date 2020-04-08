@@ -195,7 +195,6 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
     }
     
     func setupPlayer() {
-        
         guard let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines))  else {
             return
         }
