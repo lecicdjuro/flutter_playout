@@ -28,6 +28,7 @@ import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.google.android.exoplayer2.analytics.AnalyticsListener;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
+import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.ui.PlayerView;
@@ -98,6 +99,10 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
 
     private String subtitle = "";
 
+    private String preferredAudioLanguage = "mul";
+
+    private long position = -1;
+
     private boolean autoPlay = false;
 
     private boolean showControls = false;
@@ -161,6 +166,10 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
 
             this.subtitle = args.getString("subtitle");
 
+            this.preferredAudioLanguage = args.getString("preferredAudioLanguage");
+
+            this.position = Double.valueOf(args.getDouble("position")).intValue();
+
             this.autoPlay = args.getBoolean("autoPlay");
 
             this.showControls = args.getBoolean("showControls");
@@ -195,13 +204,19 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
         trackSelector = new DefaultTrackSelector(context);
 
         trackSelector.setParameters(
-                trackSelector.buildUponParameters().setPreferredAudioLanguage("mul"));
+                trackSelector.buildUponParameters()
+                        .setPreferredAudioLanguage(this.preferredAudioLanguage));
 
         mPlayerView = new SimpleExoPlayer.Builder(context).setTrackSelector(trackSelector).build();
 
         mPlayerView.setPlayWhenReady(this.autoPlay);
 
         mPlayerView.addAnalyticsListener(new PlayerAnalyticsEventsListener());
+
+        if (this.position >= 0) {
+
+            mPlayerView.seekTo(this.position);
+        }
 
         setUseController(showControls);
 
@@ -214,42 +229,11 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
                 "tv.mta/NativeVideoPlayerEventChannel_" + this.viewId,
                 JSONMethodCodec.INSTANCE).setStreamHandler(this);
 
-        /* Produces DataSource instances through which media data is loaded. */
-        DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context,
-                Util.getUserAgent(context, "flutter_playout"));
-
-        /* This is the MediaSource representing the media to be played. */
-        MediaSource videoSource = new HlsMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(Uri.parse(this.url));
-
-        mPlayerView.prepare(videoSource);
+        updateMediaSource();
 
         setupMediaSession();
 
         doBindMediaNotificationManagerService();
-    }
-
-    /**
-     * set audio language for player - language must be one of available in HLS manifest
-     * currently playing
-     *
-     * @param arguments
-     */
-    public void setPreferredAudioLanguage(Object arguments) {
-        try {
-
-            java.util.HashMap<String, String> args = (java.util.HashMap<String, String>) arguments;
-
-            String languageCode = args.get("code");
-
-            if (mPlayerView != null && trackSelector != null && mPlayerView.isPlaying()) {
-
-                trackSelector.setParameters(
-                        trackSelector.buildUponParameters()
-                                .setPreferredAudioLanguage(languageCode));
-            }
-
-        } catch (Exception e) { /* ignore */ }
     }
 
     private void setupMediaSession() {
@@ -486,27 +470,39 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
         handler.post(runnable);
     }
 
+    private void updateMediaSource() {
+        /* Produces DataSource instances through which media data is loaded. */
+        DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context,
+                Util.getUserAgent(context, "flutter_playout"));
+
+        /* This is the MediaSource representing the media to be played. */
+        MediaSource videoSource;
+        /*
+         * Check for HLS playlist file extension ( .m3u8 or .m3u )
+         * https://tools.ietf.org/html/rfc8216
+         */
+        if(this.url.contains(".m3u8") || this.url.contains("m3u")) {
+            videoSource = new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(this.url));
+        } else {
+            videoSource = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(this.url));
+        }
+
+        mPlayerView.prepare(videoSource);
+    }
+
     public void onMediaChanged(Object arguments) {
 
         try {
 
-            JSONObject args = (JSONObject) arguments;
+            java.util.HashMap<String, String> args = (java.util.HashMap<String, String>) arguments;
 
-            this.url = args.getString("url");
+            this.url = args.get("url");
 
-            this.title = args.getString("title");
+            this.title = args.get("title");
 
-            this.subtitle = args.getString("description");
+            this.subtitle = args.get("description");
 
-            /* Produces DataSource instances through which media data is loaded. */
-            DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(context,
-                    Util.getUserAgent(context, "flutter_playout"));
-
-            /* This is the new MediaSource representing the media to be played. */
-            MediaSource videoSource = new HlsMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(Uri.parse(this.url));
-
-            mPlayerView.prepare(videoSource);
+            updateMediaSource();
 
         } catch (Exception e) { /* ignore */ }
     }
@@ -522,6 +518,51 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
                 boolean sc = Boolean.parseBoolean(args.get("showControls").toString());
 
                 setUseController(sc);
+            }
+
+        } catch (Exception e) { /* ignore */ }
+    }
+
+    /**
+     * set audio language for player - language must be one of available in HLS manifest
+     * currently playing
+     *
+     * @param arguments
+     */
+    public void setPreferredAudioLanguage(Object arguments) {
+        try {
+
+            java.util.HashMap<String, String> args = (java.util.HashMap<String, String>) arguments;
+
+            String languageCode = args.get("code");
+
+            this.preferredAudioLanguage = languageCode;
+
+            if (mPlayerView != null && trackSelector != null && mPlayerView.isPlaying()) {
+
+                trackSelector.setParameters(
+                        trackSelector.buildUponParameters()
+                                .setPreferredAudioLanguage(languageCode));
+            }
+
+        } catch (Exception e) { /* ignore */ }
+    }
+
+    public void seekTo(Object arguments) {
+        try {
+
+            java.util.HashMap<String, Double> args = (java.util.HashMap<String, Double>) arguments;
+
+            Double pos = args.get("position");
+
+            if (pos >= 0) {
+
+                this.position = pos.intValue();
+
+                if (mPlayerView != null) {
+
+                    mPlayerView.seekTo(this.position);
+                }
             }
 
         } catch (Exception e) { /* ignore */ }

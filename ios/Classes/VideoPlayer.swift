@@ -118,6 +118,8 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         self.subtitle = parsedData["subtitle"] as! String
         self.isLiveStream = parsedData["isLiveStream"] as! Bool
         self.showControls = parsedData["showControls"] as! Bool
+        
+        setupPlayer()
     }
     
     /* set Flutter event channel */
@@ -192,12 +194,9 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         })
     }
     
-    /* create player view */
-    func view() -> UIView {
-        
+    func setupPlayer() {
         guard let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines))  else {
-            /* return default view if videoURL isn't valid */
-            return UIView()
+            return
         }
         do {
             let audioSession = AVAudioSession.sharedInstance()
@@ -211,7 +210,7 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         
         /* not a valid playback asset */
         if (!asset.isPlayable) {
-            return UIView()
+            return
         }
 
         /* Create a new AVPlayerItem with the asset and
@@ -277,11 +276,17 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
                 rootViewController.view.addSubview(playerController.view)
                 playerController.didMove(toParent: rootViewController)
             }
-            return playerController.view
-        } else {
-            /* return default view if player controller is not initialized */
-            return UIView()
         }
+    }
+    
+    /* create player view */
+    func view() -> UIView {
+        guard let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)),
+            let view = self.playerViewController?.view else {
+                /* return default view if videoURL isn't valid */
+                return UIView()
+        }
+        return view
     }
     
     private func onMediaChanged() {

@@ -1,3 +1,36 @@
+## 1.0.33 [March 23, 2020]
+
+* Merged PR (https://github.com/muslimtv/flutter_playout/pull/29)
+
+## 1.0.32 [March 23, 2020]
+
+* Merged PR (https://github.com/muslimtv/flutter_playout/pull/28)
+
+* Fixed wrong arguments casting in Android PlayerLayout. It was throwing exception and the change wouldn't happen.
+
+* Fixed crash on iOS when attempting to change media. It was crashing due to force unwrapping a non existing value (showControls).
+
+## 1.0.31 [March 23, 2020]
+
+* Merged PR to add progressive video source for Android (https://github.com/muslimtv/flutter_playout/pull/26)
+
+## 1.0.30 [February 15, 2020]
+
+* Fixed an issue causing audio player to re-initialize on widget rebuild even though param 
+values haven't changed
+
+## 1.0.29 [February 14, 2020]
+
+* Changed [position] from int to double
+
+## 1.0.28 [February 14, 2020]
+
+* Added [position] param for Video set set/update seek bar position
+
+## 1.0.27 [February 14, 2020]
+
+* Added **preferredAudioLanguage** param to Video to set audio language on player init
+
 ## 1.0.26 [February 11, 2020]
 
 * Added support for HLS multi-audio for Android
