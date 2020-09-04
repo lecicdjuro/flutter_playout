@@ -71,6 +71,7 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
     var subtitle:String = ""
     var isLiveStream:Bool = false
     var showControls:Bool = false
+    var position:Double = 0.0
 
     private var mediaDuration = 0.0
     
@@ -117,8 +118,9 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         self.title = parsedData["title"] as! String
         self.subtitle = parsedData["subtitle"] as! String
         self.isLiveStream = parsedData["isLiveStream"] as! Bool
-        self.showControls = parsedData["showControls"] as! Bool
-        
+        self.showControls = parsedData["showControls"] as? Bool ?? false
+        self.position = parsedData["position"] as? Double ?? 0.0
+
         setupPlayer()
     }
     
@@ -154,9 +156,21 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
                 self.subtitle = parsedData["subtitle"] as! String
                 self.isLiveStream = parsedData["isLiveStream"] as! Bool
                 self.showControls = parsedData["showControls"] as? Bool ?? false
+                self.position = parsedData["position"] as? Double ?? 0.0
 
                 self.onMediaChanged()
                 
+                result(true)
+            }
+
+            if ("seekTo" == call.method) {
+                /* data as JSON */
+                let parsedData = call.arguments as! [String: Any]
+
+                self.position = parsedData["position"] as! Double
+
+                self.player?.seek(to: CMTime(seconds: self.position, preferredTimescale: CMTimeScale(NSEC_PER_SEC)))
+
                 result(true)
             }
                 
@@ -195,93 +209,95 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
     }
     
     func setupPlayer() {
-        guard let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines))  else {
-            return
-        }
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(AVAudioSession.Category.playback,
-                                         options: AVAudioSession.CategoryOptions.allowBluetooth)
-            try audioSession.setActive(true)
-        } catch _ { }
-        
-        /* Create the asset to play */
-        let asset = AVAsset(url: videoURL)
-        
-        /* not a valid playback asset */
-        if (!asset.isPlayable) {
-            return
-        }
+        if let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            do {
+                 let audioSession = AVAudioSession.sharedInstance()
+                 try audioSession.setCategory(AVAudioSession.Category.playback,
+                                              options: AVAudioSession.CategoryOptions.allowBluetooth)
+                 try audioSession.setActive(true)
+             } catch _ { }
+             
+             /* Create the asset to play */
+             let asset = AVAsset(url: videoURL)
 
-        /* Create a new AVPlayerItem with the asset and
-         an array of asset keys to be automatically loaded */
-        let playerItem = AVPlayerItem(asset: asset,
-                                  automaticallyLoadedAssetKeys: requiredAssetKeys)
-        
-        let center = NotificationCenter.default
-        
-        center.addObserver(self, selector: #selector(onComplete(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: self.player?.currentItem)
-        center.addObserver(self, selector:#selector(onAVPlayerNewErrorLogEntry(_:)), name: .AVPlayerItemNewErrorLogEntry, object: player?.currentItem)
-        center.addObserver(self, selector:#selector(onAVPlayerFailedToPlayToEndTime(_:)), name: .AVPlayerItemFailedToPlayToEndTime, object: player?.currentItem)
-        
-        /* setup player */
-        self.player = FluterAVPlayer(playerItem: playerItem)
-        
-        if #available(iOS 12.0, *) {
-            self.player?.preventsDisplaySleepDuringVideoPlayback = true
-        }
-        
-        /* Add observer for AVPlayer status and AVPlayerItem status */
-        self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayer.status), options: [.new, .initial], context: nil)
-        self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options:[.old, .new, .initial], context: nil)
-        self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayer.timeControlStatus), options:[.old, .new, .initial], context: nil)
-                
-        /* setup callback for onTime */
-        let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserverToken = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
-            time in self.onTimeInterval(time: time)
-        }
-        
-        /* setup player view controller */
-        self.playerViewController = AVPlayerViewController()
-        if #available(iOS 10.0, *) {
-            self.playerViewController?.updatesNowPlayingInfoCenter = false
-        }
-        
-        self.playerViewController?.player = self.player
-        self.playerViewController?.view.frame = self.frame
-        self.playerViewController?.showsPlaybackControls = self.showControls
-        /* setup lock screen controls */
-        setupRemoteTransportControls()
-        
-        setupNowPlayingInfoPanel()
-       
-        /* start playback if svet to auto play */
-        if (self.autoPlay) {
-            play()
-        }
-        
-        /* Add player view controller to currently presented controller
-         FLutter controller in case Flutter is integrated in native app
-         or root controler in case of standalone Flutter controller */
-        if let playerController = playerViewController {
-            if let tabBarController = UIApplication.shared.delegate?.window??.rootViewController as? UITabBarController,
-                let navigationController = tabBarController.selectedViewController,
-                let presentedViewController = navigationController.presentedViewController {
-                    presentedViewController.addChild(playerController)
-                    presentedViewController.view.addSubview(playerController.view)
-                    playerController.didMove(toParent: presentedViewController)
-            } else if let rootViewController = UIApplication.shared.delegate?.window??.rootViewController {
-                rootViewController.addChild(playerController)
-                rootViewController.view.addSubview(playerController.view)
-                playerController.didMove(toParent: rootViewController)
-            }
+             if (asset.isPlayable) {
+                 /* Create a new AVPlayerItem with the asset and
+                  an array of asset keys to be automatically loaded */
+                 let playerItem = AVPlayerItem(asset: asset, automaticallyLoadedAssetKeys: requiredAssetKeys)
+
+                 /* setup player */
+                 self.player = FluterAVPlayer(playerItem: playerItem)
+             } else {
+                 /* not a valid playback asset */
+                 /* setup empty player */
+                 self.player = FluterAVPlayer()
+             }
+             
+             let center = NotificationCenter.default
+             
+             center.addObserver(self, selector: #selector(onComplete(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: self.player?.currentItem)
+             center.addObserver(self, selector:#selector(onAVPlayerNewErrorLogEntry(_:)), name: .AVPlayerItemNewErrorLogEntry, object: player?.currentItem)
+             center.addObserver(self, selector:#selector(onAVPlayerFailedToPlayToEndTime(_:)), name: .AVPlayerItemFailedToPlayToEndTime, object: player?.currentItem)
+             
+             /* setup player */
+             self.player = FluterAVPlayer(playerItem: playerItem)
+             
+             if #available(iOS 12.0, *) {
+                 self.player?.preventsDisplaySleepDuringVideoPlayback = true
+             }
+             
+             /* Add observer for AVPlayer status and AVPlayerItem status */
+             self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayer.status), options: [.new, .initial], context: nil)
+             self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options:[.old, .new, .initial], context: nil)
+             self.player?.addObserver(self, forKeyPath: #keyPath(AVPlayer.timeControlStatus), options:[.old, .new, .initial], context: nil)
+                     
+             /* setup callback for onTime */
+             let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+             timeObserverToken = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
+                 time in self.onTimeInterval(time: time)
+             }
+             
+             /* setup player view controller */
+             self.playerViewController = AVPlayerViewController()
+             if #available(iOS 10.0, *) {
+                 self.playerViewController?.updatesNowPlayingInfoCenter = false
+             }
+             
+             self.playerViewController?.player = self.player
+             self.playerViewController?.view.frame = self.frame
+             self.playerViewController?.showsPlaybackControls = self.showControls
+             /* setup lock screen controls */
+             setupRemoteTransportControls()
+             
+             setupNowPlayingInfoPanel()
+            
+             /* start playback if svet to auto play */
+             if (self.autoPlay) {
+                 play()
+             }
+             
+             /* Add player view controller to currently presented controller
+              FLutter controller in case Flutter is integrated in native app
+              or root controler in case of standalone Flutter controller */
+             if let playerController = playerViewController {
+                 if let tabBarController = UIApplication.shared.delegate?.window??.rootViewController as? UITabBarController,
+                     let navigationController = tabBarController.selectedViewController,
+                     let presentedViewController = navigationController.presentedViewController {
+                         presentedViewController.addChild(playerController)
+                         presentedViewController.view.addSubview(playerController.view)
+                         playerController.didMove(toParent: presentedViewController)
+                 } else if let rootViewController = UIApplication.shared.delegate?.window??.rootViewController {
+                     rootViewController.addChild(playerController)
+                     rootViewController.view.addSubview(playerController.view)
+                     playerController.didMove(toParent: rootViewController)
+                 }
+             }
         }
     }
     
     /* create player view */
     func view() -> UIView {
-        guard let videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)),
+        guard videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)) != nil,
             let view = self.playerViewController?.view else {
                 /* return default view if videoURL isn't valid */
                 return UIView()
@@ -602,3 +618,4 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
         self.playerViewController?.player = self.player
     }
 }
+

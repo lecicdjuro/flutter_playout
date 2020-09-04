@@ -215,7 +215,7 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
 
         if (this.position >= 0) {
 
-            mPlayerView.seekTo(this.position);
+            mPlayerView.seekTo(this.position * 1000);
         }
 
         setUseController(showControls);
@@ -481,7 +481,7 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
          * Check for HLS playlist file extension ( .m3u8 or .m3u )
          * https://tools.ietf.org/html/rfc8216
          */
-        if(this.url.contains(".m3u8") || this.url.contains("m3u")) {
+        if(this.url.contains(".m3u8") || this.url.contains(".m3u")) {
             videoSource = new HlsMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(this.url));
         } else {
             videoSource = new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(Uri.parse(this.url));
@@ -561,7 +561,7 @@ public class PlayerLayout extends PlayerView implements FlutterAVPlayer, EventCh
 
                 if (mPlayerView != null) {
 
-                    mPlayerView.seekTo(this.position);
+                    mPlayerView.seekTo(this.position * 1000);
                 }
             }
 
