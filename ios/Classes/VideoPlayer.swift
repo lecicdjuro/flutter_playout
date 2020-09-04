@@ -239,9 +239,6 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
              center.addObserver(self, selector:#selector(onAVPlayerNewErrorLogEntry(_:)), name: .AVPlayerItemNewErrorLogEntry, object: player?.currentItem)
              center.addObserver(self, selector:#selector(onAVPlayerFailedToPlayToEndTime(_:)), name: .AVPlayerItemFailedToPlayToEndTime, object: player?.currentItem)
              
-             /* setup player */
-             self.player = FluterAVPlayer(playerItem: playerItem)
-             
              if #available(iOS 12.0, *) {
                  self.player?.preventsDisplaySleepDuringVideoPlayback = true
              }
@@ -297,7 +294,7 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
     
     /* create player view */
     func view() -> UIView {
-        guard videoURL = URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)) != nil,
+        guard URL(string: self.url.trimmingCharacters(in: .whitespacesAndNewlines)) != nil,
             let view = self.playerViewController?.view else {
                 /* return default view if videoURL isn't valid */
                 return UIView()
