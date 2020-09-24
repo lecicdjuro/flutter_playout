@@ -112,6 +112,7 @@ class _VideoState extends State<Video> {
             "subtitle": widget.subtitle ?? "",
             "preferredAudioLanguage": widget.preferredAudioLanguage ?? "mul",
             "isLiveStream": widget.isLiveStream,
+            "position": widget.position,
           },
           creationParamsCodec: const JSONMessageCodec(),
           onPlatformViewCreated: (viewId) {
@@ -201,7 +202,7 @@ class _VideoState extends State<Video> {
   }
 
   void _onSeekPositionChanged() async {
-    if (_methodChannel != null && !Platform.isIOS) {
+    if (_methodChannel != null) {
       _methodChannel.invokeMethod("seekTo", {"position": widget.position});
     }
   }
@@ -219,15 +220,19 @@ class _VideoState extends State<Video> {
   }
 
   void _onMediaChanged() {
-    if (widget.url != null && _methodChannel != null) {
-      _methodChannel.invokeMethod("onMediaChanged", {
-        "autoPlay": widget.autoPlay,
-        "url": widget.url,
-        "title": widget.title,
-        "subtitle": widget.subtitle,
-        "isLiveStream": widget.isLiveStream,
-        "showControls": widget.showControls,
-      });
+    if (widget.url != null) {
+      if (_methodChannel == null) {
+        _setupPlayer();
+      } else {
+        _methodChannel.invokeMethod("onMediaChanged", {
+          "autoPlay": widget.autoPlay,
+          "url": widget.url,
+          "title": widget.title,
+          "subtitle": widget.subtitle,
+          "isLiveStream": widget.isLiveStream,
+          "showControls": widget.showControls,
+        });
+      }
     }
   }
 
