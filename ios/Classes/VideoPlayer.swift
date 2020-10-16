@@ -262,7 +262,7 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
              }
              
              self.playerViewController?.player = self.player
-             self.playerViewController?.view.frame = self.frame
+             self.playerViewController?.view.frame = self.bounds
              self.playerViewController?.showsPlaybackControls = self.showControls
              /* setup lock screen controls */
              setupRemoteTransportControls()
