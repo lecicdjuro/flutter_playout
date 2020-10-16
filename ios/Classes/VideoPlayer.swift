@@ -256,6 +256,7 @@ class VideoPlayer: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterPlatfor
              
              /* setup player view controller */
              self.playerViewController = AVPlayerViewController()
+             self.playerViewController.allowsPictureInPicturePlayback = false
              if #available(iOS 10.0, *) {
                  self.playerViewController?.updatesNowPlayingInfoCenter = false
              }
