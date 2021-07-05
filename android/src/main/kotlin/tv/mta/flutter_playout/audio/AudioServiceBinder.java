@@ -203,6 +203,8 @@ public class AudioServiceBinder
 
             audioPlayer.reset();
 
+            audioPlayer = null;
+
             updatePlaybackState(PlayerState.COMPLETE);
         }
     }
@@ -237,8 +239,9 @@ public class AudioServiceBinder
                 audioPlayer.setOnErrorListener(this);
 
                 audioPlayer.prepareAsync();
+            }
 
-            } else {
+            else {
 
                 audioPlayer.start();
             }
@@ -289,6 +292,8 @@ public class AudioServiceBinder
     public void onPrepared(MediaPlayer mp) {
 
         isPlayerReady = true;
+
+        isBound = true;
 
         setMediaChanging(false);
 
@@ -480,7 +485,11 @@ public class AudioServiceBinder
                 }
                 break;
         }
-        newPlaybackState.setState(playbackStateCompat, (long) audioPlayer.getCurrentPosition(), PLAYBACK_RATE);
+
+        if (audioPlayer != null) {
+            newPlaybackState.setState(playbackStateCompat,
+                    (long) audioPlayer.getCurrentPosition(), PLAYBACK_RATE);
+        }
 
         mMediaSessionCompat.setPlaybackState(newPlaybackState.build());
 

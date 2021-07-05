@@ -112,9 +112,6 @@ public class AudioPlayer implements MethodChannel.MethodCallHandler, EventChanne
 
         this.context = context;
 
-        Intent service = new Intent(this.context,
-                MediaNotificationManagerService.class);
-
         this.audioProgressUpdateHandler = new IncomingMessageHandler(this);
 
         new MethodChannel(messenger, "tv.mta/NativeAudioChannel")
@@ -180,9 +177,9 @@ public class AudioPlayer implements MethodChannel.MethodCallHandler, EventChanne
 
         boolean mediaChanged = true;
 
-        if (this.audioURL != null && audioServiceBinder != null) {
+        if (this.audioURL != null) {
 
-            mediaChanged = !this.audioURL.equals(audioServiceBinder.getAudioFileUrl());
+            mediaChanged = !this.audioURL.equals(newUrl);
         }
 
         this.audioURL = newUrl;
@@ -384,9 +381,9 @@ public class AudioPlayer implements MethodChannel.MethodCallHandler, EventChanne
 
         if (audioServiceBinder != null) {
 
-            audioServiceBinder.cleanPlayerNotification();
-
             this.context.unbindService(serviceConnection);
+
+            reset();
         }
     }
 
@@ -431,6 +428,9 @@ public class AudioPlayer implements MethodChannel.MethodCallHandler, EventChanne
             unBoundAudioService();
 
             doUnbindMediaNotificationManagerService();
+
+            /* reset media duration */
+            mediaDuration = 0;
 
         } catch (Exception e) { /* ignore */ }
     }

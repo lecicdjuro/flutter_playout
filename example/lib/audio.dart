@@ -25,6 +25,7 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   Audio _audioPlayer;
   PlayerState audioPlayerState = PlayerState.STOPPED;
   bool _loading = false;
+  bool _isLive = false;
 
   Duration duration = Duration(milliseconds: 1);
   Duration currentPlaybackPosition = Duration.zero;
@@ -55,6 +56,8 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   void didUpdateWidget(AudioPlayout oldWidget) {
     if (oldWidget.desiredState != widget.desiredState) {
       _onDesiredStateChanged(oldWidget);
+    } else if (oldWidget.url != widget.url) {
+      play();
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -112,9 +115,16 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
 
   @override
   void onDuration(int duration) {
-    setState(() {
-      this.duration = Duration(milliseconds: duration);
-    });
+    if (duration <= 0) {
+      setState(() {
+        _isLive = true;
+      });
+    } else {
+      setState(() {
+        _isLive = false;
+        this.duration = Duration(milliseconds: duration);
+      });
+    }
   }
 
   @override
@@ -200,31 +210,57 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
           Container(
             height: 15.0,
           ),
-          Slider(
-            activeColor: Colors.white,
-            value: currentPlaybackPosition?.inMilliseconds?.toDouble() ?? 0.0,
-            onChanged: (double value) {
-              seekTo(value);
-            },
-            min: 0.0,
-            max: duration.inMilliseconds.toDouble(),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Container(),
-              Container(
-                padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
-                child: Text(
-                  _playbackPositionString(),
-                  style: Theme.of(context)
-                      .textTheme
-                      .body1
-                      .copyWith(color: Colors.white),
+          _isLive
+              ? Container(
+                  child: Center(
+                    child: MaterialButton(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            Icons.fiber_smart_record,
+                            color: Colors.redAccent,
+                          ),
+                          Text(
+                            " LIVE",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ],
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                )
+              : Slider(
+                  activeColor: Colors.white,
+                  value: currentPlaybackPosition?.inMilliseconds?.toDouble() ??
+                      0.0,
+                  onChanged: (double value) {
+                    seekTo(value);
+                  },
+                  min: 0.0,
+                  max: duration.inMilliseconds.toDouble(),
                 ),
-              ),
-            ],
-          )
+          _isLive
+              ? Container()
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Container(),
+                    Container(
+                      padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
+                      child: Text(
+                        _playbackPositionString(),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyText2
+                            .copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                )
         ],
       ),
     );

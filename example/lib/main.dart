@@ -23,6 +23,7 @@ class PlayoutExample extends StatefulWidget {
 
 class _PlayoutExampleState extends State<PlayoutExample> {
   PlayerState _desiredState = PlayerState.PLAYING;
+  bool _showPlayerControls = true;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,7 +64,16 @@ class _PlayoutExampleState extends State<PlayoutExample> {
 //                _desiredState = PlayerState.PLAYING;
 //              });
             },
-          )
+          ),
+          /* toggle show player controls */
+          IconButton(
+            icon: Icon(Icons.adjust),
+            onPressed: () async {
+              setState(() {
+                _showPlayerControls = !_showPlayerControls;
+              });
+            },
+          ),
         ],
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -81,7 +91,7 @@ class _PlayoutExampleState extends State<PlayoutExample> {
               "AV Player",
               style: Theme.of(context)
                   .textTheme
-                  .title
+                  .headline6
                   .copyWith(color: Colors.white),
             )
           ],
@@ -96,7 +106,7 @@ class _PlayoutExampleState extends State<PlayoutExample> {
                 padding: EdgeInsets.fromLTRB(17.0, 33.0, 17.0, 0.0),
                 child: Text(
                   "Video Player",
-                  style: Theme.of(context).textTheme.display1.copyWith(
+                  style: Theme.of(context).textTheme.headline4.copyWith(
                       color: Colors.pink[500], fontWeight: FontWeight.w600),
                 ),
               ),
@@ -106,7 +116,7 @@ class _PlayoutExampleState extends State<PlayoutExample> {
                 padding: EdgeInsets.fromLTRB(17.0, 0.0, 17.0, 30.0),
                 child: Text(
                   "Plays video from a URL with background audio support and lock screen controls.",
-                  style: Theme.of(context).textTheme.subhead.copyWith(
+                  style: Theme.of(context).textTheme.subtitle1.copyWith(
                       color: Colors.white70, fontWeight: FontWeight.w400),
                 ),
               ),
@@ -114,13 +124,14 @@ class _PlayoutExampleState extends State<PlayoutExample> {
             SliverToBoxAdapter(
                 child: VideoPlayout(
               desiredState: _desiredState,
+              showPlayerControls: _showPlayerControls,
             )),
             SliverToBoxAdapter(
               child: Container(
                 padding: EdgeInsets.fromLTRB(17.0, 23.0, 17.0, 0.0),
                 child: Text(
                   "Audio Player",
-                  style: Theme.of(context).textTheme.display1.copyWith(
+                  style: Theme.of(context).textTheme.headline4.copyWith(
                       color: Colors.pink[500], fontWeight: FontWeight.w600),
                 ),
               ),
@@ -130,7 +141,7 @@ class _PlayoutExampleState extends State<PlayoutExample> {
                 padding: EdgeInsets.fromLTRB(17.0, 0.0, 17.0, 30.0),
                 child: Text(
                   "Plays audio from a URL with background audio support and lock screen controls.",
-                  style: Theme.of(context).textTheme.subhead.copyWith(
+                  style: Theme.of(context).textTheme.subtitle1.copyWith(
                       color: Colors.white70, fontWeight: FontWeight.w400),
                 ),
               ),

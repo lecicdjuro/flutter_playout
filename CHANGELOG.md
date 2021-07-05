@@ -1,3 +1,90 @@
+## 1.0.38 [August 25, 2020]
+
+* Merged [PR](https://github.com/muslimtv/flutter_playout/pull/61)
+* fixes [#60](https://github.com/muslimtv/flutter_playout/issues/60)
+
+## 1.0.37 [August 4, 2020]
+
+* moved Akamai Media Analytics plugin to a separate branch
+
+## 1.0.36 [July 29, 2020]
+
+* implemented Akamai Media Analytics
+
+## 1.0.35 [April 18, 2020]
+
+* Merged PR [#41](https://github.com/muslimtv/flutter_playout/pull/41)
+
+## 1.0.34 [April 10, 2020]
+
+* fixes [#39](https://github.com/muslimtv/flutter_playout/issues/39)
+
+## 1.0.33 [March 23, 2020]
+
+* Merged PR (https://github.com/muslimtv/flutter_playout/pull/29)
+
+## 1.0.32 [March 23, 2020]
+
+* Merged PR (https://github.com/muslimtv/flutter_playout/pull/28)
+
+* Fixed wrong arguments casting in Android PlayerLayout. It was throwing exception and the change wouldn't happen.
+
+* Fixed crash on iOS when attempting to change media. It was crashing due to force unwrapping a non existing value (showControls).
+
+## 1.0.31 [March 23, 2020]
+
+* Merged PR to add progressive video source for Android (https://github.com/muslimtv/flutter_playout/pull/26)
+
+## 1.0.30 [February 15, 2020]
+
+* Fixed an issue causing audio player to re-initialize on widget rebuild even though param 
+values haven't changed
+
+## 1.0.29 [February 14, 2020]
+
+* Changed [position] from int to double
+
+## 1.0.28 [February 14, 2020]
+
+* Added [position] param for Video set set/update seek bar position
+
+## 1.0.27 [February 14, 2020]
+
+* Added **preferredAudioLanguage** param to Video to set audio language on player init
+
+## 1.0.26 [February 11, 2020]
+
+* Added support for HLS multi-audio for Android
+
+## 1.0.25 [February 7, 2020]
+
+* Fixed a bug where audio service wasn't being destroyed with player
+* Fixed an issue where onTime was not being called after audio player is disposed once and recreated
+
+## 1.0.24 [February 7, 2020]
+
+* Updated example to include media change callback
+
+## 1.0.23 [February 7, 2020]
+
+* Fixed an issue where media change (url change) was not being registered with Android audio player
+
+## 1.0.22 [February 7, 2020]
+
+* Fixed an issue where audio player on Android native side was not being disposed properly
+
+## 1.0.21 [February 7, 2020]
+
+* Changed video platform view dispose to use method channel
+
+## 1.0.20 [February 7, 2020]
+
+* Fixed an issue throwing exception at video platform view dispose
+
+## 1.0.19 [January 29, 2020]
+
+* Merged pull request #15 - Ability to show/hide player controls
+
 ## 1.0.18 [January 17, 2020]
 
 * Moved player initialisation outside of build() method fixing issue where the underlying platform view keeps rebuilding whenever widget updates.

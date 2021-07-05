@@ -28,6 +28,7 @@ class PlayoutExample extends StatefulWidget {
 
 class _PlayoutExampleState extends State<PlayoutExample> {
   PlayerState _desiredState = PlayerState.PLAYING;
+  bool _showPlayerControls = true;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,18 +56,29 @@ class _PlayoutExampleState extends State<PlayoutExample> {
                     appBar: AppBar(),
                     body: Container(
                       child: Center(
-                        child: Text("Second Screen"),
+                        child: AudioPlayout(
+                          desiredState: _desiredState,
+                        ),
                       ),
                     ),
                   );
                 },
               ));
               // user is back. resume playback
+//              setState(() {
+//                _desiredState = PlayerState.PLAYING;
+//              });
+            },
+          ),
+          /* toggle show player controls */
+          IconButton(
+            icon: Icon(Icons.adjust),
+            onPressed: () async {
               setState(() {
-                _desiredState = PlayerState.PLAYING;
+                _showPlayerControls = !_showPlayerControls;
               });
             },
-          )
+          ),
         ],
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -117,6 +129,7 @@ class _PlayoutExampleState extends State<PlayoutExample> {
             SliverToBoxAdapter(
                 child: VideoPlayout(
               desiredState: _desiredState,
+              showPlayerControls: _showPlayerControls,
             )),
             SliverToBoxAdapter(
               child: Container(
@@ -139,7 +152,9 @@ class _PlayoutExampleState extends State<PlayoutExample> {
               ),
             ),
             SliverToBoxAdapter(
-              child: AudioPlayout(),
+              child: AudioPlayout(
+                desiredState: _desiredState,
+              ),
             ),
           ],
         ),
@@ -154,36 +169,94 @@ class _PlayoutExampleState extends State<PlayoutExample> {
 #### package:flutter_playout_example/video.dart
 
 ```dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_playout/multiaudio/HLSManifestLanguage.dart';
+import 'package:flutter_playout/multiaudio/MultiAudioSupport.dart';
 import 'package:flutter_playout/player_observer.dart';
 import 'package:flutter_playout/player_state.dart';
 import 'package:flutter_playout/video.dart';
+import 'package:flutter_playout_example/hls/getManifestLanguages.dart';
 
-class VideoPlayout extends StatelessWidget with PlayerObserver {
+class VideoPlayout extends StatefulWidget {
   final PlayerState desiredState;
+  final bool showPlayerControls;
 
-  const VideoPlayout({Key key, this.desiredState}) : super(key: key);
+  const VideoPlayout({Key key, this.desiredState, this.showPlayerControls})
+      : super(key: key);
+
+  @override
+  _VideoPlayoutState createState() => _VideoPlayoutState();
+}
+
+class _VideoPlayoutState extends State<VideoPlayout>
+    with PlayerObserver, MultiAudioSupport {
+  final String _url = null;
+  List<HLSManifestLanguage> _hlsLanguages = List<HLSManifestLanguage>();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration.zero, _getHLSManifestLanguages);
+  }
+
+  Future<void> _getHLSManifestLanguages() async {
+    if (!Platform.isIOS && _url != null && _url.isNotEmpty) {
+      _hlsLanguages = await getManifestLanguages(_url);
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Video(
-          autoPlay: true,
-          title: "MTA International",
-          subtitle: "Reaching The Corners Of The Earth",
-          isLiveStream: true,
-          url: "https://your_video_stream.com/stream_test.m3u8",
-          onViewCreated: _onViewCreated,
-          desiredState: desiredState,
-        ),
+      child: Column(
+        children: <Widget>[
+          /* player */
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Video(
+              autoPlay: true,
+              showControls: widget.showPlayerControls,
+              title: "MTA International",
+              subtitle: "Reaching The Corners Of The Earth",
+              preferredAudioLanguage: "eng",
+              isLiveStream: true,
+              url: _url,
+              onViewCreated: _onViewCreated,
+              desiredState: widget.desiredState,
+            ),
+          ),
+          /* multi language menu */
+          _hlsLanguages.length < 2 && !Platform.isIOS
+              ? Container()
+              : Container(
+                  child: Row(
+                    children: _hlsLanguages
+                        .map((e) => MaterialButton(
+                              child: Text(
+                                e.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .button
+                                    .copyWith(color: Colors.white),
+                              ),
+                              onPressed: () {
+                                setPreferredAudioLanguage(e.code);
+                              },
+                            ))
+                        .toList(),
+                  ),
+                ),
+        ],
       ),
     );
   }
 
   void _onViewCreated(int viewId) {
     listenForVideoPlayerEvents(viewId);
+    enableMultiAudioSupport(viewId);
   }
 
   @override
@@ -240,8 +313,7 @@ import 'package:flutter_playout/player_state.dart';
 
 class AudioPlayout extends StatefulWidget {
   // Audio url to play
-  final String url =
-      "https://your_audio_stream.com/stream_test.m3u8";
+  final String url = "https://your_audio_stream.com/stream_test.m3u8";
 
   // Audio track title. this will also be displayed in lock screen controls
   final String title = "MTA International";
@@ -261,6 +333,7 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   Audio _audioPlayer;
   PlayerState audioPlayerState = PlayerState.STOPPED;
   bool _loading = false;
+  bool _isLive = false;
 
   Duration duration = Duration(milliseconds: 1);
   Duration currentPlaybackPosition = Duration.zero;
@@ -291,6 +364,8 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   void didUpdateWidget(AudioPlayout oldWidget) {
     if (oldWidget.desiredState != widget.desiredState) {
       _onDesiredStateChanged(oldWidget);
+    } else if (oldWidget.url != widget.url) {
+      play();
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -315,6 +390,7 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   void onPlay() {
     setState(() {
       audioPlayerState = PlayerState.PLAYING;
+      _loading = false;
     });
   }
 
@@ -337,7 +413,6 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
   void onTime(int position) {
     setState(() {
       currentPlaybackPosition = Duration(seconds: position);
-      _loading = false;
     });
   }
 
@@ -348,9 +423,16 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
 
   @override
   void onDuration(int duration) {
-    setState(() {
-      this.duration = Duration(milliseconds: duration);
-    });
+    if (duration <= 0) {
+      setState(() {
+        _isLive = true;
+      });
+    } else {
+      setState(() {
+        _isLive = false;
+        this.duration = Duration(milliseconds: duration);
+      });
+    }
   }
 
   @override
@@ -436,31 +518,57 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
           Container(
             height: 15.0,
           ),
-          Slider(
-            activeColor: Colors.white,
-            value: currentPlaybackPosition?.inMilliseconds?.toDouble() ?? 0.0,
-            onChanged: (double value) {
-              seekTo(value);
-            },
-            min: 0.0,
-            max: duration.inMilliseconds.toDouble(),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Container(),
-              Container(
-                padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
-                child: Text(
-                  _playbackPositionString(),
-                  style: Theme.of(context)
-                      .textTheme
-                      .body1
-                      .copyWith(color: Colors.white),
+          _isLive
+              ? Container(
+                  child: Center(
+                    child: MaterialButton(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            Icons.fiber_smart_record,
+                            color: Colors.redAccent,
+                          ),
+                          Text(
+                            " LIVE",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ],
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                )
+              : Slider(
+                  activeColor: Colors.white,
+                  value: currentPlaybackPosition?.inMilliseconds?.toDouble() ??
+                      0.0,
+                  onChanged: (double value) {
+                    seekTo(value);
+                  },
+                  min: 0.0,
+                  max: duration.inMilliseconds.toDouble(),
                 ),
-              ),
-            ],
-          )
+          _isLive
+              ? Container()
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Container(),
+                    Container(
+                      padding: EdgeInsets.fromLTRB(20, 5, 20, 10),
+                      child: Text(
+                        _playbackPositionString(),
+                        style: Theme.of(context)
+                            .textTheme
+                            .body1
+                            .copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                )
         ],
       ),
     );
@@ -485,7 +593,7 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
         title: widget.title,
         subtitle: widget.subtitle,
         position: currentPlaybackPosition,
-        isLiveStream: true);
+        isLiveStream: false);
   }
 
   // Request audio pause
@@ -514,7 +622,9 @@ class _AudioPlayout extends State<AudioPlayout> with PlayerObserver {
 
   @override
   void dispose() {
-    _audioPlayer.dispose();
+    if (mounted) {
+      _audioPlayer.dispose();
+    }
     super.dispose();
   }
 }
